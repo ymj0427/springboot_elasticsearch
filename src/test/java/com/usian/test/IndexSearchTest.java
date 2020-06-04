@@ -7,12 +7,15 @@ import org.elasticsearch.action.search.SearchRequest;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestHighLevelClient;
+import org.elasticsearch.common.text.Text;
 import org.elasticsearch.index.query.BoolQueryBuilder;
 import org.elasticsearch.index.query.Operator;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.SearchHits;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
+import org.elasticsearch.search.fetch.subphase.highlight.HighlightBuilder;
+import org.elasticsearch.search.fetch.subphase.highlight.HighlightField;
 import org.elasticsearch.search.sort.SortOrder;
 import org.junit.After;
 import org.junit.Before;
@@ -25,6 +28,7 @@ import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 import java.io.IOException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.Map;
 
 @RunWith(SpringJUnit4ClassRunner.class)
 @SpringBootTest(classes = {ElasticsearchApp.class})
@@ -85,6 +89,13 @@ public class IndexSearchTest {
             // 源文档内容
             String source = hit.getSourceAsString();
             System.out.println(source);
+
+            Map<String, HighlightField> highlightFields = hit.getHighlightFields();
+            if (highlightFields != null){
+                HighlightField highlightField = highlightFields.get("name");
+                Text[] fragments = highlightField.getFragments();
+                System.out.println("高亮效果："+fragments[0].toString());
+            }
         }
     }
 
@@ -152,5 +163,21 @@ public class IndexSearchTest {
         searchSourceBuilder.query(boolQueryBuilder);
         searchRequest.source(searchSourceBuilder);
         searchResponse = restHighLevelClient.search(searchRequest,RequestOptions.DEFAULT);
+    }
+
+    //highlight查询
+    @Test
+    public void testHighLightQuery() throws IOException {
+        SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+        searchSourceBuilder.query(QueryBuilders.matchQuery("name","开发"));
+        //设置高亮
+        HighlightBuilder highlightBuilder = new HighlightBuilder();
+        highlightBuilder.preTags("<font color='red'>");
+        highlightBuilder.postTags("</font>");
+        highlightBuilder.fields().add(new HighlightBuilder.Field("name"));
+
+        searchSourceBuilder.highlighter(highlightBuilder);
+        searchRequest.source(searchSourceBuilder);
+        searchResponse = restHighLevelClient.search(searchRequest, RequestOptions.DEFAULT);
     }
 }
